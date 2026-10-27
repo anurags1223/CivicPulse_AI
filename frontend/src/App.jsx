@@ -21,22 +21,38 @@ function Modal({title,subtitle,onClose,children,wide=false}){
 
 function Auth({onClose,notify,recovery=false}){
  const [mode,setMode]=useState(recovery?'password':'login'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
- async function submit(e){e.preventDefault();setBusy(true);setError('');setMessage('');const form=new FormData(e.currentTarget);
-  try{if(!api.supabase)throw new Error('The shared service is not configured. See the setup guide.');
-   const email=form.get('email'),password=form.get('password');
+ const [email,setEmail]=useState(''),[password,setPassword]=useState('');
+ async function submit(e){
+  if(e)e.preventDefault();
+  setBusy(true);setError('');setMessage('');
+  try{
+   const formEmail=email.trim(),formPassword=password;
+   if(!formEmail)throw new Error('Please enter your email address.');
+   if(mode!=='reset'&&!formPassword)throw new Error('Please enter your password.');
    let result;
-   if(mode==='signup')result=await api.supabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin}});
-   else if(mode==='reset')result=await api.supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
-   else if(mode==='password')result=await api.supabase.auth.updateUser({password});
-   else result=await api.supabase.auth.signInWithPassword({email,password});
+   if(mode==='signup')result=await api.supabase.auth.signUp({email:formEmail,password:formPassword,options:{emailRedirectTo:window.location.origin}});
+   else if(mode==='reset')result=await api.supabase.auth.resetPasswordForEmail(formEmail,{redirectTo:window.location.origin});
+   else if(mode==='password')result=await api.supabase.auth.updateUser({password:formPassword});
+   else result=await api.supabase.auth.signInWithPassword({email:formEmail,password:formPassword});
    if(result.error)throw result.error;
    if(mode==='signup'&&!result.data.session)setMessage('Check your email to confirm your account, then sign in.');
    else if(mode==='reset')setMessage('If that account exists, a password reset link will arrive by email.');
-   else{notify(mode==='password'?'Password updated.':'Connected to the shared workspace.');onClose();}
-  }catch(err){const text=err.message||'Sign-in could not be completed.';setError(/email address.*not authorized|error sending confirmation email/i.test(text)?'Verification email is unavailable. Ask the workspace owner to finish email delivery setup.':/email rate limit/i.test(text)?'Too many verification emails were requested. Please wait before trying again.':text);}finally{setBusy(false);}
+   else{notify(mode==='password'?'Password updated.':'Connected to workspace.');onClose();}
+  }catch(err){
+   const text=err.message||'Sign-in could not be completed.';
+   setError(/email address.*not authorized|error sending confirmation email/i.test(text)?'Verification email is unavailable. Ask the workspace owner to finish email delivery setup.':/email rate limit/i.test(text)?'Too many verification emails were requested. Please wait before trying again.':text);
+  }finally{setBusy(false);}
  }
- useEffect(()=>{const {data}=api.supabase?.auth.onAuthStateChange(event=>{if(event==='PASSWORD_RECOVERY')setMode('password');})||{};return()=>data?.subscription.unsubscribe();},[]);
- return <Modal title={mode==='signup'?'Make your neighbourhood heard':mode==='reset'?'Reset your password':mode==='password'?'Choose a new password':'Welcome to CivicPulse'} subtitle="Real accounts. Shared reports. Accountable action." onClose={onClose}><div className="auth-intro"><ShieldCheck size={25}/><p>Citizen accounts are open to everyone. Staff access is granted separately and checked by the database.</p></div><form onSubmit={submit} className="form">{mode!=='password'&&<label>Email address<input name="email" type="email" autoComplete="email" required placeholder="you@example.com"/></label>}{mode!=='reset'&&<label>Password<input name="password" type="password" autoComplete={mode==='login'?'current-password':'new-password'} minLength={10} required placeholder="At least 10 characters"/></label>}{error&&<p className="error" role="alert">{error}</p>}{message&&<p className="success" role="status">{message}</p>}<button className="primary full" disabled={busy}>{busy?'Please wait…':mode==='signup'?'Create citizen account':mode==='reset'?'Send reset link':mode==='password'?'Save password':'Sign in'}<ArrowRight size={17}/></button></form><div className="auth-links"><button onClick={()=>{setMode(mode==='signup'?'login':'signup');setError('');setMessage('');}}>{mode==='signup'?'Already registered? Sign in':'New here? Create an account'}</button><button onClick={()=>{setMode('reset');setError('');setMessage('');}}>Forgot password?</button></div></Modal>;
+ async function quickLogin(targetEmail,targetPassword,targetRole){
+  setEmail(targetEmail);setPassword(targetPassword);setBusy(true);setError('');setMessage('');
+  try{
+   const result=await api.supabase.auth.signInWithPassword({email:targetEmail,password:targetPassword});
+   if(result.error)throw result.error;
+   notify(`Signed in as ${targetRole}.`);onClose();
+  }catch(err){setError(err.message||'Quick sign-in failed.');}finally{setBusy(false);}
+ }
+ useEffect(()=>{const {data}=api.supabase?.auth?.onAuthStateChange?.(event=>{if(event==='PASSWORD_RECOVERY')setMode('password');})||{};return()=>data?.subscription?.unsubscribe();},[]);
+ return <Modal title={mode==='signup'?'Make your neighbourhood heard':mode==='reset'?'Reset your password':mode==='password'?'Choose a new password':'Welcome to CivicPulse'} subtitle="Real accounts. Shared reports. Accountable action." onClose={onClose}><div className="auth-intro"><ShieldCheck size={25}/><p>Citizen accounts are open to everyone. Staff access is granted separately and checked by the database.</p></div>{mode==='login'&&<div style={{marginBottom:'14px',padding:'12px',background:'#fafafa',border:'1px solid #e0e0e0',borderRadius:'8px'}}><div style={{fontSize:'11px',fontWeight:'600',color:'#666',marginBottom:'8px'}}>⚡ ONE-CLICK DEMO ACCOUNTS</div><div style={{display:'flex',gap:'8px'}}><button type="button" className="secondary compact" style={{flex:1}} onClick={()=>quickLogin('staff@chandigarh.gov.in','staff12345','Staff')}>Staff (Review & Resolve)</button><button type="button" className="secondary compact" style={{flex:1}} onClick={()=>quickLogin('citizen@chandigarh.res.in','citizen12345','Citizen')}>Citizen (Report & Verify)</button></div></div>}<form onSubmit={submit} className="form">{mode!=='password'&&<label>Email address<input name="email" type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" required placeholder="you@example.com"/></label>}{mode!=='reset'&&<label>Password<input name="password" type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode==='login'?'current-password':'new-password'} minLength={6} required placeholder="At least 6 characters"/></label>}{error&&<p className="error" role="alert">{error}</p>}{message&&<p className="success" role="status">{message}</p>}<button className="primary full" disabled={busy}>{busy?'Please wait…':mode==='signup'?'Create citizen account':mode==='reset'?'Send reset link':mode==='password'?'Save password':'Sign in'}<ArrowRight size={17}/></button></form><div className="auth-links"><button onClick={()=>{setMode(mode==='signup'?'login':'signup');setError('');setMessage('');}}>{mode==='signup'?'Already registered? Sign in':'New here? Create an account'}</button><button onClick={()=>{setMode('reset');setError('');setMessage('');}}>Forgot password?</button></div></Modal>;
 }
 
 function Report({issues,demo,onClose,onSubmit}){
