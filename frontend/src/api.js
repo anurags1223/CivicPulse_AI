@@ -6,16 +6,75 @@ const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const realSupabase = url && key ? createClient(url, key) : null;
 
-// Mock persistent authentication and issue store for browser environment when Supabase is not connected
+// Persistent mock store for browser environment when Supabase is not connected
 const STORAGE_USER_KEY = 'civicpulse_auth_session';
 const STORAGE_ISSUES_KEY = 'civicpulse_issues';
 const STORAGE_VOTES_KEY = 'civicpulse_votes';
+const STORAGE_REWARDS_KEY = 'civicpulse_rewards';
 
 const authSubscribers = new Set();
 function notifyAuth(event, session) {
   authSubscribers.forEach(cb => {
     try { cb(event, session); } catch (e) { console.error(e); }
   });
+}
+
+
+// ─── Rewards / gamification helpers ──────────────────────────────────────────
+function getRewards(userId) {
+  try {
+    const raw = localStorage.getItem(STORAGE_REWARDS_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    return all[userId] || { points: 0, reportCount: 0, resolvedCount: 0, maxUpvotes: 0, badges: [] };
+  } catch { return { points: 0, reportCount: 0, resolvedCount: 0, maxUpvotes: 0, badges: [] }; }
+}
+
+function saveRewards(userId, data) {
+  try {
+    const raw = localStorage.getItem(STORAGE_REWARDS_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    all[userId] = data;
+    localStorage.setItem(STORAGE_REWARDS_KEY, JSON.stringify(all));
+  } catch(e) { console.warn('rewards save error', e); }
+}
+
+export function awardPoints(userId, event, extra = {}) {
+  if (!userId) return null;
+  const r = getRewards(userId);
+  const pointMap = { report: 10, upvote: 2, resolved: 50, verified_photo: 15 };
+  r.points = (r.points || 0) + (pointMap[event] || 0);
+  if (event === 'report') r.reportCount = (r.reportCount || 0) + 1;
+  if (event === 'resolved') r.resolvedCount = (r.resolvedCount || 0) + 1;
+  if (event === 'upvote' && extra.total) r.maxUpvotes = Math.max(r.maxUpvotes || 0, extra.total);
+  // Badge checks (import lazily to avoid circular)
+  const BADGE_THRESHOLDS = [
+    { id:'first_report', check: r => r.reportCount >= 1 },
+    { id:'reporter_5',   check: r => r.reportCount >= 5 },
+    { id:'eagle_eye',    check: r => r.reportCount >= 10 },
+    { id:'civic_hero',   check: r => r.reportCount >= 25 },
+    { id:'resolver',     check: r => r.resolvedCount >= 1 },
+    { id:'influencer',   check: r => r.maxUpvotes >= 10 },
+  ];
+  BADGE_THRESHOLDS.forEach(b => {
+    if (!r.badges.includes(b.id) && b.check(r)) r.badges.push(b.id);
+  });
+  saveRewards(userId, r);
+  return r;
+}
+
+export function getMyRewards(userId) {
+  return getRewards(userId);
+}
+
+export function getLeaderboard() {
+  try {
+    const raw = localStorage.getItem(STORAGE_REWARDS_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    return Object.entries(all)
+      .map(([uid, r]) => ({ uid, points: r.points || 0, reportCount: r.reportCount || 0, badges: r.badges || [] }))
+      .sort((a, b) => b.points - a.points)
+      .slice(0, 5);
+  } catch { return []; }
 }
 
 const mockAuth = {
@@ -45,13 +104,20 @@ const mockAuth = {
     const emailNorm = email.trim().toLowerCase();
     const isStaff = /staff|admin|gov|bikeesah30@gmail\.com/.test(emailNorm);
     const userId = 'usr_' + (typeof btoa !== 'undefined' ? btoa(emailNorm).replace(/=/g, '').slice(0, 16) : 'user123');
+    const officerTitle = emailNorm === 'bikeesah30@gmail.com' 
+      ? 'Lead Municipal Operations Officer' 
+      : isStaff ? 'Municipal Staff' : 'Resident Citizen';
     
     const session = {
       access_token: 'mock-token-' + Date.now(),
       user: {
         id: userId,
         email: emailNorm,
-        user_metadata: { role: isStaff ? 'staff' : 'citizen' }
+        user_metadata: { 
+          role: isStaff ? 'staff' : 'citizen',
+          title: officerTitle,
+          isChiefOfficer: emailNorm === 'bikeesah30@gmail.com'
+        }
       }
     };
     try {
@@ -62,8 +128,32 @@ const mockAuth = {
     notifyAuth('SIGNED_IN', session);
     return { data: { session, user: session.user }, error: null };
   },
-  async signUp({ email, password, options }) {
-    return this.signInWithPassword({ email, password });
+  async signUp({ email, password, fullName, options }) {
+    if (!email || !password) throw new Error('Email and password are required.');
+    const emailNorm = email.trim().toLowerCase();
+    const isStaff = /staff|admin|gov|bikeesah30@gmail\.com/.test(emailNorm);
+    const userId = 'usr_' + (typeof btoa !== 'undefined' ? btoa(emailNorm).replace(/=/g, '').slice(0, 16) : 'user123');
+    
+    const session = {
+      access_token: 'mock-token-' + Date.now(),
+      user: {
+        id: userId,
+        email: emailNorm,
+        user_metadata: { 
+          role: isStaff ? 'staff' : 'citizen',
+          fullName: fullName || emailNorm.split('@')[0],
+          title: isStaff ? 'Municipal Staff' : 'Registered Citizen',
+          isChiefOfficer: emailNorm === 'bikeesah30@gmail.com'
+        }
+      }
+    };
+    try {
+      localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(session));
+    } catch (e) {
+      console.warn('Could not save session to localStorage', e);
+    }
+    notifyAuth('SIGNED_IN', session);
+    return { data: { session, user: session.user }, error: null };
   },
   async resetPasswordForEmail(email) {
     return { data: {}, error: null };
@@ -163,7 +253,7 @@ export async function upload(file) {
     return path;
   }
 
-  // Convert to Base64 Data URL for in-browser persistence
+  // Convert to Base64 Data URL for instant in-browser preview & persistence
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
@@ -218,17 +308,18 @@ export async function submit(report, file) {
     support_count_base: 0,
     created_at: new Date().toISOString(),
     events: [
-      { status: 'Reported', note: 'Issue submitted by community member.', created_at: new Date().toISOString() }
+      { status: 'Reported', note: 'Issue submitted by community resident.', created_at: new Date().toISOString() }
     ]
   };
 
   const list = getStoredIssues();
   list.unshift(newIssue);
   saveStoredIssues(list);
+  if (currentId) awardPoints(currentId, 'report');
   return newIssue;
 }
 
-export async function transition(issue, status, note, file, rating) {
+export async function transition(issue, status, note, file, rating, updatedDepartment) {
   const resolution_photo_path = file ? await upload(file) : issue.resolution_photo_path;
 
   if (realSupabase) {
@@ -236,6 +327,7 @@ export async function transition(issue, status, note, file, rating) {
     if (file) update.resolution_photo_path = resolution_photo_path;
     if (status === 'Awaiting confirmation') update.resolution_note = note;
     if (status === 'Resolved') update.rating = Number(rating);
+    if (updatedDepartment) update.department = updatedDepartment;
     try {
       return unwrap(await realSupabase.from('cp_issues').update(update).eq('id', issue.id).select().single());
     } catch (error) {
@@ -252,16 +344,19 @@ export async function transition(issue, status, note, file, rating) {
     const updated = {
       ...existing,
       status,
+      department: updatedDepartment || existing.department,
       resolution_note: status === 'Awaiting confirmation' ? note : existing.resolution_note,
       resolution_photo_path: resolution_photo_path || existing.resolution_photo_path,
       rating: status === 'Resolved' ? Number(rating) : existing.rating,
       events: [
         ...(existing.events || []),
-        { status, note, created_at: new Date().toISOString() }
+        { status, note: note + (updatedDepartment ? ` [Department: ${updatedDepartment}]` : ''), created_at: new Date().toISOString() }
       ]
     };
     list[index] = updated;
     saveStoredIssues(list);
+    // Award original reporter when resolved
+    if (status === 'Resolved' && existing.reporter_id) { try { awardPoints(existing.reporter_id, 'resolved'); } catch(e){} }
     return updated;
   }
   return issue;

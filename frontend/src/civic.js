@@ -35,3 +35,42 @@ export function canTransition(issue,next,role,actorId,proof) {
   if (role==='staff') return (issue.status==='Reported' && next==='Assigned') || (issue.status==='Assigned' && next==='In progress') || (issue.status==='In progress' && next==='Awaiting confirmation' && !!proof);
   return issue.reporter_id===actorId && issue.status==='Awaiting confirmation' && ['Resolved','In progress'].includes(next);
 }
+
+// Visual keywords used for client-side image filename / description heuristics
+export const imageKeywords = {
+  roads: ['pothole','crack','asphalt','road','pavement','footpath','sidewalk','broken road','highway','divider'],
+  sanitation: ['garbage','trash','waste','dump','litter','bin','rubbish','filth','sewage overflow','odor'],
+  lighting: ['streetlight','lamppost','dark street','broken lamp','lighting','light pole','no light'],
+  drainage: ['flood','waterlog','drain','overflow','puddle','stagnant water','sewage','blocked drain'],
+  water: ['pipe leak','water leak','burst pipe','water supply','dry tap','no water','water seepage'],
+  other: [],
+};
+
+// Civic issue visual detection — checks filename + any extracted text
+export function detectCivicFromImage(filename='', altText='') {
+  const haystack = (filename+' '+altText).toLowerCase();
+  for(const [key, words] of Object.entries(imageKeywords)){
+    if(key==='other') continue;
+    if(words.some(w=>haystack.includes(w))) return { category:key, confidence:'medium' };
+  }
+  return null;
+}
+
+// Badge definitions
+export const BADGES = [
+  { id:'first_report',  icon:'🌱', label:'First Report',   desc:'Filed your very first civic report', threshold:1  },
+  { id:'reporter_5',   icon:'📋', label:'Reporter',        desc:'Filed 5 civic reports',              threshold:5  },
+  { id:'eagle_eye',    icon:'🦅', label:'Eagle Eye',       desc:'Filed 10 civic reports',             threshold:10 },
+  { id:'civic_hero',   icon:'🏆', label:'Civic Hero',      desc:'Filed 25 civic reports',             threshold:25 },
+  { id:'resolver',     icon:'✅', label:'Problem Solver',  desc:'One of your reports was resolved',   threshold:1, type:'resolved' },
+  { id:'influencer',   icon:'🔥', label:'Influencer',      desc:'Got 10 upvotes on a single report',  threshold:10, type:'upvotes' },
+];
+
+export const IMPACT_MESSAGES = [
+  'Your report is helping keep the neighbourhood safer.',
+  'Residents nearby will benefit from your vigilance.',
+  'Municipal crews are now aware thanks to you.',
+  'This fix may reduce accident risk for hundreds of daily commuters.',
+  'Your civic action keeps the city running smoothly.',
+  'Great catch — this kind of report drives real change.',
+];
