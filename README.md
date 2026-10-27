@@ -1,47 +1,71 @@
 # CivicPulse AI
 
 > **Report smarter. Respond faster.**  
-> A civic issue reporting and resolution platform featuring transparent priority scoring, proximity duplicate detection, automated department routing, photo evidence tracking, and resident-verified closure.
+> An AI-powered civic issue reporting and municipal resolution platform featuring transparent priority scoring, Smart City CCTV AI vision, automated hazard detection, non-monetary citizen gamification, proximity duplicate detection, and resident-verified closure.
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-black?style=for-the-badge&logo=vercel)](https://civicpulse-ai-chi.vercel.app)
+[![Tests Passing](https://img.shields.io/badge/Tests-Passing-brightgreen?style=for-the-badge)](https://github.com/anurags1223/CivicPulse_AI)
 
 - **Production URL:** [https://civicpulse-ai-chi.vercel.app](https://civicpulse-ai-chi.vercel.app)
 - **GitHub Repository:** [https://github.com/anurags1223/CivicPulse_AI](https://github.com/anurags1223/CivicPulse_AI)
 
 ---
 
-## Overview
+## 🌟 Key Features
 
-CivicPulse AI bridges citizens and municipal departments through a clear, inspectable workflow:
-- **Explainable Priority Scoring**: Calculates priority dynamically based on citizen severity, public safety risk, affected population, and report age.
-- **Duplicate Detection**: Flags nearby issues (<150m) in the same category to prevent redundant tickets while aggregating public impact.
-- **Interactive City Map**: Real-time Leaflet map of reported issues categorized by urgency level with visual pins.
-- **Department Routing**: Automatically suggests the responsible municipal department (Roads, Electrical, Water & Sanitation, etc.).
-- **Proof-Backed Resolution**: Field staff must upload repair proof before requesting closure; tickets are only completed when confirmed by the original resident.
-- **Instant Demo Mode**: Includes 6 synthetic community reports so anyone can test all features immediately without requiring database credentials.
+### 1. 🎥 Smart City CCTV AI Vision Network
+- **Automated Highway & Junction Monitoring**: Eliminates reliance on busy highway drivers or commuters to report road hazards. Municipal CCTV cameras continuously monitor critical traffic intersections and expressways.
+- **Computer Vision Hazard Detection**: AI bounding boxes identify potholes (`[POTHOLE 98%]`), drain overflow / waterlogging (`[WATERLOG 95%]`), solid waste accumulation, and streetlight outages in real time.
+- **1-Click Dispatch to Municipal Queue**: Operations staff can review live camera telemetry (FPS, vehicle density, coordinates) and immediately route AI detections to the responsible department.
+
+### 2. 🏆 Citizen Gamification & Non-Monetary Rewards
+- **Civic Points**: Citizens earn `+10 pts` for reporting, `+2 pts` for community upvotes, and `+50 pts` when their reported issue is resolved by field crews.
+- **Civic Badges**: Milestones including 🌱 *First Report*, 📋 *Reporter* (5 reports), 🦅 *Eagle Eye* (10 reports), 🏆 *Civic Hero* (25 reports), and ✅ *Problem Solver*.
+- **Citizen Rewards Bar**: Signed-in citizens can track their total civic score and community impact.
+
+### 3. 🤖 AI Photo Evidence Validator
+- **Image Hazard Classification**: Uses Gemini Vision (`gemini-2.0-flash`) and visual heuristics to verify whether an uploaded photo depicts a genuine civic issue (pothole, garbage, flood) or an irrelevant photo before submission.
+- **Instant Visual Feedback**: Shows color-coded verdict chips (`✅ Detected: Roads & footpaths`, `⏳ Analyzing…`, or `⚠️ Not a civic issue detected`).
+
+### 4. 📍 High-Accuracy "Use My Location" & Reverse Geocoding
+- **One-Tap GPS Lock**: Direct browser geolocation with `enableHighAccuracy: true` for mobile devices.
+- **Automated Street Name Detection**: Uses OpenStreetMap Nominatim reverse geocoding to automatically populate landmarks and street names (e.g., *Kartavya Path*, *Sector 17 Plaza*).
+
+### 5. ⚡ Explainable Priority Scoring & Duplicate Prevention
+- **Transparent Scoring Formula**: Prioritizes tickets based on reported severity, public safety risk, affected population density, and age of report.
+- **Proximity Duplicate Detection**: Automatically flags existing reports within 150 meters in the same category to prevent duplicate work orders while aggregating resident impact.
+
+### 6. 🛠️ Staff Triage Portal & Resident-Verified Closure
+- **Role-Based Workflow**: Dedicated access for municipal operations staff (`bikeesah30@gmail.com`).
+- **Proof-Backed Resolution**: Staff must upload photographic proof of repair before requesting closure.
+- **Citizen Confirmation Lock**: Only the original resident reporter can confirm resolution or reopen an unsatisfied repair.
 
 ---
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 - **Frontend**: React 19, Vite 8, React-Leaflet, Leaflet, Lucide React
-- **Backend (Optional / Production)**: Supabase (PostgreSQL, Row-Level Security, Managed Auth, Storage)
+- **AI & Vision**: Gemini Vision API integration (`gemini-2.0-flash`), OpenStreetMap Geocoding
+- **Storage & State**: Built-in persistent browser mock store (fallback) + Supabase (PostgreSQL, Row-Level Security, Managed Auth, Storage)
 - **Testing**: Node.js native test runner (`node --test`)
+- **Deployment**: Vercel (Production CI/CD)
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```text
 CivicPulse_AI/
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx             # Main application UI and workflow state
-│   │   ├── Map.jsx             # Interactive Leaflet map component
-│   │   ├── api.js              # Supabase API client and demo data fallback
-│   │   ├── civic.js            # Business logic (priority scoring, duplicate detection)
-│   │   ├── seed.js             # Synthetic demo cases
-│   │   ├── style.css           # UI layout and styling
+│   │   ├── App.jsx             # Main application UI, state & workflow navigation
+│   │   ├── Map.jsx             # Interactive Leaflet map component with issue pins
+│   │   ├── api.js              # Supabase API client, persistent mock store & rewards engine
+│   │   ├── cctv.js             # Smart City CCTV feeds, telemetry & AI hazard generation
+│   │   ├── aiValidatePhoto.js  # Gemini Vision & heuristic photo verification
+│   │   ├── civic.js            # Business logic (priority scoring, duplicate rules, badges)
+│   │   ├── seed.js             # Synthetic demo cases for out-of-the-box demo
+│   │   ├── style.css           # UI layout, CCTV surveillance HUD & rewards bar styling
 │   │   └── main.jsx            # React root mount
 │   ├── tests/
 │   │   └── civic.test.js       # Unit tests for scoring, duplicates & role permissions
@@ -51,19 +75,15 @@ CivicPulse_AI/
 ├── backend/
 │   ├── supabase/
 │   │   └── schema.sql          # PostgreSQL schema, RLS policies, functions & triggers
-│   ├── tests/
-│   │   └── database.sql        # Database integration tests (rollback-safe)
-│   └── README.md               # Backend deployment instructions
-├── .github/
-│   └── workflows/
-│       └── ci.yml              # CI test workflow
+│   └── tests/
+│       └── database.sql        # Database integration tests
 ├── package.json                # Root package script runner
 └── README.md
 ```
 
 ---
 
-## Steps to Run Locally
+## 🚀 Steps to Run Locally
 
 ### Prerequisites
 
@@ -90,7 +110,7 @@ You can install all dependencies from the root directory:
 npm run setup
 ```
 
-*(Alternatively, you can navigate directly to the frontend folder and install: `cd frontend && npm install`)*
+*(Alternatively: `cd frontend && npm install`)*
 
 ---
 
@@ -102,14 +122,14 @@ Start the local development server:
 npm run dev
 ```
 
-The Vite server will launch. Open your browser and navigate to:
+Open your browser and navigate to:
 
 ```
 http://127.0.0.1:5173/
 ```
 
 > **Note on Demo Mode:**  
-> The application will automatically run in **Demo Mode** out-of-the-box using 6 synthetic civic reports. You can explore the dashboard, filter by severity, view map pins, inspect the decision rules, and test staff/resident role toggles without setting up any backend.
+> The application runs in **Demo Mode** out-of-the-box using synthetic community reports and CCTV feeds. You can explore the dashboard, filter by severity, view live CCTV surveillance cameras, test the AI validator, and toggle staff/resident roles without needing any database setup.
 
 ---
 
@@ -131,7 +151,7 @@ To build the project for production:
 npm run build
 ```
 
-The compiled output will be generated in `frontend/dist/`. To preview the production build locally:
+The compiled output will be generated in `frontend/dist/`. To preview locally:
 
 ```bash
 npm run preview
@@ -139,41 +159,42 @@ npm run preview
 
 ---
 
-## Optional: Connecting to a Real Supabase Backend
+## ⚙️ Optional Environment Variables
 
-If you wish to run the app with live Supabase authentication, PostgreSQL storage, and real database triggers:
+If connecting to a live Supabase backend or Gemini Vision API, configure `frontend/.env.local`:
 
-1. **Create a Supabase Project** at [supabase.com](https://supabase.com).
-2. **Execute Database Schema**:
-   - Open your project's **SQL Editor**.
-   - Copy the contents of `backend/supabase/schema.sql` and run it.
-3. **Configure Environment Variables**:
-   - Copy `frontend/.env.example` to `frontend/.env.local`:
-     ```bash
-     cp frontend/.env.example frontend/.env.local
-     ```
-   - Fill in your Supabase credentials:
-     ```env
-     VITE_SUPABASE_URL=https://your-project-id.supabase.co
-     VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-publishable-key
-     ```
-   *(Never expose your `service_role` secret key in Vite.)*
-4. **Restart the dev server** (`npm run dev`). The app will now connect to your live Supabase database.
+```env
+# Supabase Backend (Optional)
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-publishable-key
+
+# Gemini AI Vision (Optional)
+VITE_GEMINI_API_KEY=your-gemini-api-key
+```
+
+*(Without these keys, CivicPulse AI automatically falls back to its persistent local mock store and heuristic classifier).*
 
 ---
 
-## Available Scripts
+## 📜 Available Scripts
 
 | Command | Description |
 | :--- | :--- |
-| `npm run setup` | Installs frontend dependencies using `npm ci` |
+| `npm run setup` | Installs frontend dependencies |
 | `npm run dev` | Starts Vite local development server on `http://127.0.0.1:5173/` |
-| `npm test` | Runs the Node.js test suite for priority scoring & workflow logic |
+| `npm test` | Runs the test suite for priority scoring & workflow logic |
 | `npm run build` | Compiles optimized production bundle in `frontend/dist` |
 | `npm run preview` | Previews the production build locally |
 
 ---
 
-## License
+## 👥 Roles & Credentials
+
+- **Lead Operations Officer:** `bikeesah30@gmail.com` (password: `bikeesah30` or quick login button)
+- **Resident Citizen:** Sign in with any personal email to track reports, earn points, and unlock badges.
+
+---
+
+## 📄 License
 
 This project is licensed under the MIT License.
