@@ -3,6 +3,11 @@
 > **Report smarter. Respond faster.**  
 > A civic issue reporting and resolution platform featuring transparent priority scoring, proximity duplicate detection, automated department routing, photo evidence tracking, and resident-verified closure.
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-black?style=for-the-badge&logo=vercel)](https://civicpulse-ai-chi.vercel.app)
+
+- **Production URL:** [https://civicpulse-ai-chi.vercel.app](https://civicpulse-ai-chi.vercel.app)
+- **GitHub Repository:** [https://github.com/anurags1223/CivicPulse_AI](https://github.com/anurags1223/CivicPulse_AI)
+
 ---
 
 ## Overview
